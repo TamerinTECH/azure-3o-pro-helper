@@ -1,4 +1,4 @@
-# Azure OpenAI Text Processor
+# Web Interface Playground for Azure OpenAI o3-pro Model
 
 A simple, clean web application for processing text content using Azure OpenAI's o3-pro model. Built by [TamerinTECH](https://www.tamerin.tech)
 

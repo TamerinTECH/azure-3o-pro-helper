@@ -256,7 +256,7 @@ const Index = () => {
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Azure OpenAI Text Processor
+            Web Interface Playground for Azure OpenAI o3-pro Model
           </h1>
           <p className="text-muted-foreground">
             Upload files and enter text to process with Azure OpenAI o3-pro model
