@@ -24,6 +24,8 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySet, hasApiKey
     const savedApiVersion = localStorage.getItem('azure_openai_api_version') || 'preview';
     
     if (savedApiKey && savedEndpoint) {
+      setApiKey(savedApiKey);
+      setEndpoint(savedEndpoint);
       setModel(savedModel);
       setApiVersion(savedApiVersion);
       onApiKeySet(savedApiKey, savedEndpoint, savedModel, savedApiVersion);
