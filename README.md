@@ -1,6 +1,8 @@
 # Azure OpenAI Text Processor
 
-A simple, clean web application for processing text content using Azure OpenAI's o3-pro model. Built by TamerinTECH.
+A simple, clean web application for processing text content using Azure OpenAI's o3-pro model. Built by [TamerinTECH](https://www.tamerin.tech)
+
+## live demo: [Azure OpenAI o3-pro UI](https://azure-3o-pro-helper.lovable.app/)
 
 ## What is this?
 
