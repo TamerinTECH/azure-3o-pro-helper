@@ -293,6 +293,26 @@ const Index = () => {
             />
           )}
         </div>
+        
+        {/* Disclaimer Footer */}
+        <div className="mt-12 pt-8 border-t border-border">
+          <div className="text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Created by{' '}
+              <a 
+                href="https://www.tamerin.tech" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary-hover underline"
+              >
+                TamerinTECH
+              </a>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              This is not a production ready application, for testing purposes only. Use at your own risk.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
