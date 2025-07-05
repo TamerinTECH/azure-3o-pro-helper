@@ -6,20 +6,27 @@ import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ApiKeyInputProps {
-  onApiKeySet: (apiKey: string, endpoint: string) => void;
+  onApiKeySet: (apiKey: string, endpoint: string, model: string, apiVersion: string) => void;
   hasApiKey: boolean;
 }
 
 export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySet, hasApiKey }) => {
   const [apiKey, setApiKey] = useState('');
   const [endpoint, setEndpoint] = useState('');
+  const [model, setModel] = useState('o3-pro');
+  const [apiVersion, setApiVersion] = useState('preview');
   const [showInputs, setShowInputs] = useState(!hasApiKey);
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('azure_openai_api_key');
     const savedEndpoint = localStorage.getItem('azure_openai_endpoint');
+    const savedModel = localStorage.getItem('azure_openai_model') || 'o3-pro';
+    const savedApiVersion = localStorage.getItem('azure_openai_api_version') || 'preview';
+    
     if (savedApiKey && savedEndpoint) {
-      onApiKeySet(savedApiKey, savedEndpoint);
+      setModel(savedModel);
+      setApiVersion(savedApiVersion);
+      onApiKeySet(savedApiKey, savedEndpoint, savedModel, savedApiVersion);
     }
   }, [onApiKeySet]);
 
@@ -27,7 +34,9 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySet, hasApiKey
     if (apiKey.trim() && endpoint.trim()) {
       localStorage.setItem('azure_openai_api_key', apiKey);
       localStorage.setItem('azure_openai_endpoint', endpoint);
-      onApiKeySet(apiKey, endpoint);
+      localStorage.setItem('azure_openai_model', model);
+      localStorage.setItem('azure_openai_api_version', apiVersion);
+      onApiKeySet(apiKey, endpoint, model, apiVersion);
       setShowInputs(false);
     }
   };
@@ -35,8 +44,12 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySet, hasApiKey
   const handleClear = () => {
     localStorage.removeItem('azure_openai_api_key');
     localStorage.removeItem('azure_openai_endpoint');
+    localStorage.removeItem('azure_openai_model');
+    localStorage.removeItem('azure_openai_api_version');
     setApiKey('');
     setEndpoint('');
+    setModel('o3-pro');
+    setApiVersion('preview');
     setShowInputs(true);
   };
 
@@ -97,10 +110,35 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySet, hasApiKey
           />
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="model">Model Name</Label>
+            <Input
+              id="model"
+              type="text"
+              placeholder="e.g., o3-pro"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="apiVersion">API Version</Label>
+            <Input
+              id="apiVersion"
+              type="text"
+              placeholder="e.g., preview"
+              value={apiVersion}
+              onChange={(e) => setApiVersion(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        </div>
+
         <div className="flex space-x-2">
           <Button 
             onClick={handleSave} 
-            disabled={!apiKey.trim() || !endpoint.trim()}
+            disabled={!apiKey.trim() || !endpoint.trim() || !model.trim() || !apiVersion.trim()}
             className="bg-gradient-primary hover:shadow-hover"
           >
             Save Configuration

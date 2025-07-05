@@ -26,11 +26,15 @@ const Index = () => {
   const [result, setResult] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [endpoint, setEndpoint] = useState<string | null>(null);
+  const [model, setModel] = useState<string>('o3-pro');
+  const [apiVersion, setApiVersion] = useState<string>('preview');
   const { toast } = useToast();
 
-  const handleApiKeySet = (key: string, endpointUrl: string) => {
+  const handleApiKeySet = (key: string, endpointUrl: string, modelName: string, version: string) => {
     setApiKey(key);
     setEndpoint(endpointUrl);
+    setModel(modelName);
+    setApiVersion(version);
   };
 
   const readFileAsText = (file: File): Promise<string> => {
@@ -81,14 +85,14 @@ const Index = () => {
     try {
       const combinedInput = await combineTextContent();
       
-      const response = await fetch(`${endpoint}/openai/v1/responses?api-version=preview`, {
+      const response = await fetch(`${endpoint}/openai/v1/responses?api-version=${apiVersion}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'api-key': apiKey
         },
         body: JSON.stringify({
-          model: 'o3-pro-2',
+          model: model,
           input: combinedInput
         })
       });
