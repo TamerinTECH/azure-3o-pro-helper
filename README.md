@@ -1,73 +1,111 @@
-# Welcome to your Lovable project
+# Azure OpenAI Text Processor
 
-## Project info
+A simple, clean web application for processing text content using Azure OpenAI's o3-pro model. Built by TamerinTECH.
 
-**URL**: https://lovable.dev/projects/7e8f0a4b-0c7a-4275-9e83-ca8366209ee3
+## What is this?
 
-## How can I edit this code?
+This application allows you to:
+- Input text directly in a large text box
+- Upload multiple .txt files for processing
+- Combine all text content and send it to Azure OpenAI o3-pro model
+- View the AI-generated response in a scrollable format
+- Download the results as a .txt file
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- **Simple Interface**: Clean, modern UI with no authentication required
+- **File Upload**: Drag & drop support for multiple .txt files
+- **Azure OpenAI Integration**: Uses the powerful o3-pro model via Azure OpenAI API
+- **Configurable**: Set your own API endpoint, model name, and API version
+- **Local Storage**: Your API credentials are saved locally in your browser
+- **Export Results**: Download processed results as text files
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7e8f0a4b-0c7a-4275-9e83-ca8366209ee3) and start prompting.
+## How to Use
 
-Changes made via Lovable will be committed automatically to this repo.
+### 1. Configure Azure OpenAI
+First, you'll need to set up your Azure OpenAI credentials:
+- **Azure OpenAI Endpoint**: Your Azure resource endpoint (e.g., `https://your-resource.openai.azure.com`)
+- **API Key**: Your Azure OpenAI API key
+- **Model Name**: The model deployment name (default: `o3-pro`)
+- **API Version**: The API version to use (default: `preview`)
 
-**Use your preferred IDE**
+These settings are saved locally in your browser for convenience.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 2. Add Your Content
+- Type or paste text directly into the large text box
+- Upload additional .txt files using the drag & drop area
+- All content will be combined when processing
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 3. Process with AI
+- Click "Process with Azure OpenAI" to send your content to the AI model
+- Wait for the processing to complete (this may take a few moments)
+- View the results in the scrollable output area
 
-Follow these steps:
+### 4. Export Results
+- Download the AI response as a .txt file for later use
+- Reset the interface to start a new processing session
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Technical Details
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+The application makes API calls to Azure OpenAI using this format:
+```bash
+curl -X POST https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1/responses?api-version=preview \
+  -H "Content-Type: application/json" \
+  -H "api-key: $AZURE_OPENAI_API_KEY" \
+  -d '{
+     "model": "o3-pro",
+     "input": "Your combined text content"
+    }'
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Technologies Used
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+This project is built with:
+- **React** - Frontend framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **shadcn/ui** - UI components
+- **Vite** - Build tool
+
+## Local Development
+
+To run this project locally:
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+
+# Navigate to project directory
+cd azure-openai-text-processor
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Azure OpenAI Setup
 
-**Use GitHub Codespaces**
+To use this application, you'll need:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. An Azure OpenAI resource with the o3-pro model deployed
+2. The endpoint URL for your Azure OpenAI resource
+3. An API key with access to your Azure OpenAI resource
+4. The deployment name of your o3-pro model
 
-## What technologies are used for this project?
+## Security Notes
 
-This project is built with:
+- API keys are stored locally in your browser only
+- No data is sent to any third-party services except Azure OpenAI
+- All processing happens client-side before being sent to Azure OpenAI
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Support
 
-## How can I deploy this project?
+For issues or questions, please check your Azure OpenAI configuration and ensure your API key has the necessary permissions.
 
-Simply open [Lovable](https://lovable.dev/projects/7e8f0a4b-0c7a-4275-9e83-ca8366209ee3) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+*Built with ❤️ by TamerinTECH*
