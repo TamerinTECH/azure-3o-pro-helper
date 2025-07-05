@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { ProcessingLoader } from '@/components/ProcessingLoader';
 import { ResultDisplay } from '@/components/ResultDisplay';
 import { ApiKeyInput } from '@/components/ApiKeyInput';
 import { useToast } from '@/hooks/use-toast';
+import { encode } from 'gpt-tokenizer';
 
 interface AzureResponse {
   output: Array<{
@@ -28,7 +29,38 @@ const Index = () => {
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [model, setModel] = useState<string>('o3-pro');
   const [apiVersion, setApiVersion] = useState<string>('preview');
+  const [fileContents, setFileContents] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const MAX_TOKENS = 200000;
+
+  // Calculate tokens for current input text and files
+  const currentTokens = useMemo(() => {
+    const combinedText = inputText + '\n' + fileContents.join('\n');
+    if (!combinedText.trim()) return 0;
+    try {
+      return encode(combinedText).length;
+    } catch (error) {
+      console.error('Error counting tokens:', error);
+      return 0;
+    }
+  }, [inputText, fileContents]);
+
+  // Update file contents when files change
+  useEffect(() => {
+    const loadFileContents = async () => {
+      const contents = await Promise.all(
+        files.map(file => readFileAsText(file).catch(() => ''))
+      );
+      setFileContents(contents);
+    };
+
+    if (files.length > 0) {
+      loadFileContents();
+    } else {
+      setFileContents([]);
+    }
+  }, [files]);
 
   const handleApiKeySet = (key: string, endpointUrl: string, modelName: string, version: string) => {
     setApiKey(key);
@@ -59,6 +91,23 @@ const Index = () => {
     }
     
     return combinedText;
+  };
+
+  const handleTextChange = (value: string) => {
+    // Calculate tokens for the new text combined with file contents
+    const testText = value + '\n' + fileContents.join('\n');
+    const tokenCount = testText.trim() ? encode(testText).length : 0;
+    
+    if (tokenCount > MAX_TOKENS) {
+      toast({
+        title: "Token Limit Exceeded",
+        description: `Maximum ${MAX_TOKENS.toLocaleString()} tokens allowed. Current: ${tokenCount.toLocaleString()}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setInputText(value);
   };
 
   const processWithAzureOpenAI = async () => {
@@ -176,16 +225,30 @@ const Index = () => {
             <>
               <Card className="p-6 shadow-soft">
                 <div className="space-y-4">
-                  <Label htmlFor="input-text" className="text-base font-medium">
-                    Input Text
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="input-text" className="text-base font-medium">
+                      Input Text
+                    </Label>
+                    <div className="text-sm text-muted-foreground">
+                      <span className={currentTokens > MAX_TOKENS * 0.9 ? 'text-destructive font-medium' : ''}>
+                        {currentTokens.toLocaleString()} / {MAX_TOKENS.toLocaleString()} tokens
+                      </span>
+                    </div>
+                  </div>
                   <Textarea
                     id="input-text"
                     placeholder="Enter your text here..."
                     value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
+                    onChange={(e) => handleTextChange(e.target.value)}
                     className="min-h-[200px] resize-y"
                   />
+                  {currentTokens > MAX_TOKENS * 0.8 && (
+                    <div className="text-sm text-muted-foreground">
+                      <span className={currentTokens > MAX_TOKENS * 0.9 ? 'text-destructive' : 'text-warning'}>
+                        Warning: You're approaching the token limit
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -195,6 +258,11 @@ const Index = () => {
                     Upload Text Files
                   </Label>
                   <FileUpload files={files} onFilesChange={setFiles} />
+                  {files.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {files.length} file{files.length > 1 ? 's' : ''} uploaded
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -203,7 +271,7 @@ const Index = () => {
                   onClick={processWithAzureOpenAI}
                   size="lg"
                   className="bg-gradient-primary hover:shadow-hover px-8 py-3 text-lg font-medium"
-                  disabled={(!inputText.trim() && files.length === 0)}
+                  disabled={(!inputText.trim() && files.length === 0) || currentTokens > MAX_TOKENS}
                 >
                   Process with Azure OpenAI
                 </Button>
