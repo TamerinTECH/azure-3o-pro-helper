@@ -30,13 +30,23 @@ const Index = () => {
   const [model, setModel] = useState<string>('o3-pro');
   const [apiVersion, setApiVersion] = useState<string>('preview');
   const [fileContents, setFileContents] = useState<string[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const { toast } = useToast();
 
   const MAX_TOKENS = 200000;
 
-  // Calculate tokens for current input text and files
+  // Calculate tokens for current input text and files (matching API format)
   const currentTokens = useMemo(() => {
-    const combinedText = inputText + '\n' + fileContents.join('\n');
+    let combinedText = inputText;
+    
+    // Add file contents in the same format as combineTextContent function
+    fileContents.forEach((content, index) => {
+      if (content.trim()) {
+        const fileName = files[index]?.name || `file-${index + 1}`;
+        combinedText += `\n\n--- Content from ${fileName} ---\n${content}`;
+      }
+    });
+    
     if (!combinedText.trim()) return 0;
     try {
       return encode(combinedText).length;
@@ -44,23 +54,61 @@ const Index = () => {
       console.error('Error counting tokens:', error);
       return 0;
     }
-  }, [inputText, fileContents]);
+  }, [inputText, fileContents, files]);
 
   // Update file contents when files change
   useEffect(() => {
     const loadFileContents = async () => {
-      const contents = await Promise.all(
-        files.map(file => readFileAsText(file).catch(() => ''))
-      );
-      setFileContents(contents);
+      if (files.length === 0) {
+        setFileContents([]);
+        return;
+      }
+
+      setIsLoadingFiles(true);
+      try {
+        const contents = await Promise.all(
+          files.map(async (file) => {
+            try {
+              const content = await readFileAsText(file);
+              return content;
+            } catch (error) {
+              console.error(`Error reading file ${file.name}:`, error);
+              toast({
+                title: "File Reading Error",
+                description: `Could not read file: ${file.name}`,
+                variant: "destructive"
+              });
+              return '';
+            }
+          })
+        );
+        setFileContents(contents);
+
+        // Check if total tokens exceed limit after loading files
+        const testText = inputText + '\n' + contents.join('\n');
+        const tokenCount = testText.trim() ? encode(testText).length : 0;
+        
+        if (tokenCount > MAX_TOKENS) {
+          toast({
+            title: "Token Limit Exceeded",
+            description: `Files exceed token limit. Current: ${tokenCount.toLocaleString()} / ${MAX_TOKENS.toLocaleString()}`,
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error('Error loading file contents:', error);
+        toast({
+          title: "Error",
+          description: "Failed to process uploaded files",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingFiles(false);
+      }
     };
 
-    if (files.length > 0) {
-      loadFileContents();
-    } else {
-      setFileContents([]);
-    }
-  }, [files]);
+    loadFileContents();
+  }, [files, inputText, toast]);
 
   const handleApiKeySet = (key: string, endpointUrl: string, modelName: string, version: string) => {
     setApiKey(key);
@@ -258,9 +306,20 @@ const Index = () => {
                     Upload Text Files
                   </Label>
                   <FileUpload files={files} onFilesChange={setFiles} />
-                  {files.length > 0 && (
+                  {isLoadingFiles && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                      Reading files and calculating tokens...
+                    </div>
+                  )}
+                  {files.length > 0 && !isLoadingFiles && (
                     <div className="text-sm text-muted-foreground">
                       {files.length} file{files.length > 1 ? 's' : ''} uploaded
+                      {fileContents.some(content => content.trim()) && (
+                        <span className="ml-2">
+                          ({fileContents.filter(content => content.trim()).length} processed)
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -271,7 +330,7 @@ const Index = () => {
                   onClick={processWithAzureOpenAI}
                   size="lg"
                   className="bg-gradient-primary hover:shadow-hover px-8 py-3 text-lg font-medium"
-                  disabled={(!inputText.trim() && files.length === 0) || currentTokens > MAX_TOKENS}
+                  disabled={(!inputText.trim() && files.length === 0) || currentTokens > MAX_TOKENS || isLoadingFiles}
                 >
                   Process with Azure OpenAI
                 </Button>
