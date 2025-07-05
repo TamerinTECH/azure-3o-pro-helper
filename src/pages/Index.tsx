@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { ProcessingLoader } from '@/components/ProcessingLoader';
 import { ResultDisplay } from '@/components/ResultDisplay';
 import { ApiKeyInput } from '@/components/ApiKeyInput';
 import { useToast } from '@/hooks/use-toast';
+import { encode } from 'gpt-tokenizer';
 
 interface AzureResponse {
   output: Array<{
@@ -28,7 +29,86 @@ const Index = () => {
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [model, setModel] = useState<string>('o3-pro');
   const [apiVersion, setApiVersion] = useState<string>('preview');
+  const [fileContents, setFileContents] = useState<string[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const { toast } = useToast();
+
+  const MAX_TOKENS = 200000;
+
+  // Calculate tokens for current input text and files (matching API format)
+  const currentTokens = useMemo(() => {
+    let combinedText = inputText;
+    
+    // Add file contents in the same format as combineTextContent function
+    fileContents.forEach((content, index) => {
+      if (content.trim()) {
+        const fileName = files[index]?.name || `file-${index + 1}`;
+        combinedText += `\n\n--- Content from ${fileName} ---\n${content}`;
+      }
+    });
+    
+    if (!combinedText.trim()) return 0;
+    try {
+      return encode(combinedText).length;
+    } catch (error) {
+      console.error('Error counting tokens:', error);
+      return 0;
+    }
+  }, [inputText, fileContents, files]);
+
+  // Update file contents when files change
+  useEffect(() => {
+    const loadFileContents = async () => {
+      if (files.length === 0) {
+        setFileContents([]);
+        return;
+      }
+
+      setIsLoadingFiles(true);
+      try {
+        const contents = await Promise.all(
+          files.map(async (file) => {
+            try {
+              const content = await readFileAsText(file);
+              return content;
+            } catch (error) {
+              console.error(`Error reading file ${file.name}:`, error);
+              toast({
+                title: "File Reading Error",
+                description: `Could not read file: ${file.name}`,
+                variant: "destructive"
+              });
+              return '';
+            }
+          })
+        );
+        setFileContents(contents);
+
+        // Check if total tokens exceed limit after loading files
+        const testText = inputText + '\n' + contents.join('\n');
+        const tokenCount = testText.trim() ? encode(testText).length : 0;
+        
+        if (tokenCount > MAX_TOKENS) {
+          toast({
+            title: "Token Limit Exceeded",
+            description: `Files exceed token limit. Current: ${tokenCount.toLocaleString()} / ${MAX_TOKENS.toLocaleString()}`,
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error('Error loading file contents:', error);
+        toast({
+          title: "Error",
+          description: "Failed to process uploaded files",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+
+    loadFileContents();
+  }, [files, inputText, toast]);
 
   const handleApiKeySet = (key: string, endpointUrl: string, modelName: string, version: string) => {
     setApiKey(key);
@@ -59,6 +139,23 @@ const Index = () => {
     }
     
     return combinedText;
+  };
+
+  const handleTextChange = (value: string) => {
+    // Calculate tokens for the new text combined with file contents
+    const testText = value + '\n' + fileContents.join('\n');
+    const tokenCount = testText.trim() ? encode(testText).length : 0;
+    
+    if (tokenCount > MAX_TOKENS) {
+      toast({
+        title: "Token Limit Exceeded",
+        description: `Maximum ${MAX_TOKENS.toLocaleString()} tokens allowed. Current: ${tokenCount.toLocaleString()}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setInputText(value);
   };
 
   const processWithAzureOpenAI = async () => {
@@ -176,16 +273,30 @@ const Index = () => {
             <>
               <Card className="p-6 shadow-soft">
                 <div className="space-y-4">
-                  <Label htmlFor="input-text" className="text-base font-medium">
-                    Input Text
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="input-text" className="text-base font-medium">
+                      Input Text
+                    </Label>
+                    <div className="text-sm text-muted-foreground">
+                      <span className={currentTokens > MAX_TOKENS * 0.9 ? 'text-destructive font-medium' : ''}>
+                        {currentTokens.toLocaleString()} / {MAX_TOKENS.toLocaleString()} tokens
+                      </span>
+                    </div>
+                  </div>
                   <Textarea
                     id="input-text"
                     placeholder="Enter your text here..."
                     value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
+                    onChange={(e) => handleTextChange(e.target.value)}
                     className="min-h-[200px] resize-y"
                   />
+                  {currentTokens > MAX_TOKENS * 0.8 && (
+                    <div className="text-sm text-muted-foreground">
+                      <span className={currentTokens > MAX_TOKENS * 0.9 ? 'text-destructive' : 'text-warning'}>
+                        Warning: You're approaching the token limit
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -195,6 +306,22 @@ const Index = () => {
                     Upload Text Files
                   </Label>
                   <FileUpload files={files} onFilesChange={setFiles} />
+                  {isLoadingFiles && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                      Reading files and calculating tokens...
+                    </div>
+                  )}
+                  {files.length > 0 && !isLoadingFiles && (
+                    <div className="text-sm text-muted-foreground">
+                      {files.length} file{files.length > 1 ? 's' : ''} uploaded
+                      {fileContents.some(content => content.trim()) && (
+                        <span className="ml-2">
+                          ({fileContents.filter(content => content.trim()).length} processed)
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -203,7 +330,7 @@ const Index = () => {
                   onClick={processWithAzureOpenAI}
                   size="lg"
                   className="bg-gradient-primary hover:shadow-hover px-8 py-3 text-lg font-medium"
-                  disabled={(!inputText.trim() && files.length === 0)}
+                  disabled={(!inputText.trim() && files.length === 0) || currentTokens > MAX_TOKENS || isLoadingFiles}
                 >
                   Process with Azure OpenAI
                 </Button>
@@ -224,6 +351,26 @@ const Index = () => {
               onReset={resetProcessing}
             />
           )}
+        </div>
+        
+        {/* Disclaimer Footer */}
+        <div className="mt-12 pt-8 border-t border-border">
+          <div className="text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Created by{' '}
+              <a 
+                href="https://www.tamerin.tech" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary-hover underline"
+              >
+                TamerinTECH
+              </a>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              This is not a production ready application, for testing purposes only. Use at your own risk.
+            </p>
+          </div>
         </div>
       </div>
     </div>
